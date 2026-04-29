@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PRD → Proposal Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #09090b;
+      --surface: #18181b;
+      --panel: rgba(24, 24, 27, 0.6);
+      --border: #27272a;
+      --border-light: #3f3f46;
+      --gold: #d4af37;
+      --gold-dim: #a68a29;
+      --gold-glow: rgba(212, 175, 55, 0.15);
+      --cream: #f4ece6;
+      --muted: #a1a1aa;
+      --text: #e4e4e7;
+      --accent: #fcd34d;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Instrument Sans', sans-serif;
+    }
+
+    body {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    /* Subtle grid texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Radial glow top */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 900px; height: 500px;
+      background: radial-gradient(ellipse, rgba(201,168,76,0.07) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      background: rgba(13,13,15,0.7);
+    }
+
+    .logo {
+      display: flex; align-items: baseline; gap: 10px;
+    }
+    .logo-mark {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      color: var(--cream);
+    }
+    .logo-mark span { color: var(--gold); font-style: italic; }
+    .logo-sep {
+      width: 1px; height: 18px;
+      background: var(--border-light);
+    }
+    .logo-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .header-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      background: var(--gold-glow);
+      border: 1px solid var(--gold-dim);
+      padding: 5px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+
+    /* ─── LAYOUT ─── */
+    .workspace {
+      position: relative; z-index: 5;
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+      min-height: calc(100vh - 65px);
+    }
+
+    .divider {
+      background: var(--border);
+      position: relative;
+    }
+    .divider::after {
+      content: '⟷';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      color: var(--muted);
+      font-size: 12px;
+      background: var(--bg);
+      padding: 6px 2px;
+    }
+
+    /* ─── PANEL ─── */
+    .panel {
+      display: flex; flex-direction: column;
+      min-height: 400px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: var(--panel);
+      border-radius: 12px;
+      margin: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+
+    .panel-header {
+      padding: 22px 36px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .panel-title strong {
+      color: var(--cream);
+      font-weight: 600;
+    }
+
+    .step-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--gold);
+      letter-spacing: 0.08em;
+    }
+
+    .panel-body {
+      flex: 1;
+      padding: 28px 36px;
+    }
+
+    /* ─── INPUT AREA ─── */
+    .prd-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .prd-label::before {
+      content: '';
+      display: inline-block;
+      width: 20px; height: 1px;
+      background: var(--gold-dim);
+    }
+
+    textarea {
+      width: 100%;
+      height: 200px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 20px 22px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      margin-bottom: 20px;
+    }
+    textarea::placeholder { color: var(--muted); font-size: 13px; }
+    textarea:focus {
+      border-color: var(--gold-dim);
+      box-shadow: 0 0 0 3px var(--gold-glow);
+    }
+
+    .file-upload-container {
+        margin-bottom: 24px;
+        padding: 20px;
+        background: var(--panel);
+        border: 1px dashed var(--border);
+        border-radius: 6px;
+        text-align: center;
+        transition: border-color 0.2s;
+    }
+    .file-upload-container:hover {
+        border-color: var(--gold-dim);
+    }
+    .file-input-wrapper {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+    }
+    .file-input-wrapper input[type="file"] {
+        position: absolute;
+        left: 0; top: 0; opacity: 0;
+        width: 100%; height: 100%;
+        cursor: pointer;
+    }
+    .file-label {
+        font-family: 'Instrument Sans', sans-serif;
+        font-size: 13px;
+        color: var(--gold);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .input-footer {
+      margin-top: 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .char-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .btn-generate {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--gold);
+      color: #0d0d0f;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 4px;
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-generate::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+    }
+    .btn-generate:hover {
+      background: var(--accent);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(201,168,76,0.25);
+    }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled {
+      background: var(--border-light);
+      color: var(--muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* hints */
+    .hints {
+      margin-top: 24px;
+      padding: 18px 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--gold-dim);
+      border-radius: 4px;
+    }
+    .hints-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin-bottom: 10px;
+    }
+    .hints ul { list-style: none; }
+    .hints ul li {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.8;
+      padding-left: 14px;
+      position: relative;
+    }
+    .hints ul li::before {
+      content: '·';
+      position: absolute; left: 0;
+      color: var(--gold-dim);
+    }
+
+    /* ─── OUTPUT ─── */
+    .output-empty {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 300px;
+      gap: 16px;
+      opacity: 0.5;
+    }
+    .output-empty-icon { font-size: 48px; filter: grayscale(1); }
+    .output-empty p {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-style: italic;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+
+    /* Loading */
+    .loading {
+      display: none;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 400px;
+      gap: 15px;
+    }
+    .loading.active { display: flex; }
+    
+    .loading-animation {
+      position: relative;
+      width: 80px; height: 80px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .loading-spinner {
+      position: absolute;
+      width: 100%; height: 100%;
+      border: 2px solid transparent;
+      border-top-color: var(--gold);
+      border-right-color: var(--gold-dim);
+      border-radius: 50%;
+      animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+    }
+    .loading-percentage {
+      font-family: 'DM Mono', monospace;
+      font-size: 16px;
+      color: var(--cream);
+      font-weight: 600;
+      z-index: 2;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .loading-progress-container {
+      width: 60%;
+      max-width: 250px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .loading-progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--gold-dim), var(--gold), var(--accent));
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      position: relative;
+    }
+    .loading-progress-bar::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .loading-text {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-top: 5px;
+      animation: pulseText 1.5s infinite alternate;
+    }
+    @keyframes pulseText {
+      from { opacity: 0.6; }
+      to { opacity: 1; }
+    }
+
+    /* Proposal Output */
+    .proposal {
+      display: none;
+      animation: fadeSlideIn 0.4s ease both;
+    }
+    .proposal.active { display: block; }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .proposal-header {
+      padding-bottom: 24px;
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .proposal-eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+
+    .proposal-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 300;
+      line-height: 1.2;
+      color: var(--cream);
+      margin-bottom: 8px;
+    }
+
+    .proposal-meta {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      display: flex; gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .proposal-body {
+      font-size: 14px;
+      line-height: 1.75;
+      color: #ccc8c0;
+    }
+
+    .proposal-body h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--cream);
+      margin: 28px 0 10px;
+      letter-spacing: 0.01em;
+    }
+
+    .proposal-body h3 {
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin: 22px 0 8px;
+    }
+
+    .proposal-body p { margin-bottom: 12px; }
+    .proposal-body ul, .proposal-body ol { padding-left: 20px; margin-bottom: 12px; }
+    .proposal-body li { margin-bottom: 6px; }
+    .proposal-body strong { color: var(--cream); font-weight: 600; }
+
+    .proposal-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13px;
+      display: block;
+      overflow-x: auto;
+    }
+    .proposal-body th {
+      background: var(--panel);
+      padding: 10px 14px;
+      text-align: left;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      border-bottom: 1px solid var(--border);
+    }
+    .proposal-body td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: #b8b4ac;
+      min-width: 120px;
+    }
+
+    .output-actions {
+      display: flex; justify-content: flex-end; gap: 10px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .btn-copy, .btn-reset, .btn-download {
+      display: flex; align-items: center; gap: 6px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-copy:hover { border-color: var(--gold-dim); color: var(--gold); }
+    .btn-download { background: var(--gold-glow); border-color: var(--gold-dim); color: var(--gold); }
+    .btn-download:hover { background: var(--gold); color: #0d0d0f; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 1024px) {
+        .workspace { grid-template-columns: 1fr; }
+        .divider { height: 1px; width: 100%; }
+        .divider::after { content: '↕'; padding: 2px 6px; }
+        header { padding: 15px 20px; }
+        .panel-body { padding: 20px; }
+    }
+
+    @media (max-width: 600px) {
+        .logo-mark { font-size: 18px; }
+        .logo-sub { display: none; }
+        .header-badge { font-size: 8px; padding: 4px 8px; }
+        .proposal-title { font-size: 22px; }
+        .btn-generate { width: 100%; justify-content: center; }
+        .output-actions { justify-content: center; }
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">PRD <span>→</span> Proposal</div>
+      <div class="logo-sep"></div>
+      <div class="logo-sub">Project Scope Generator</div>
+    </div>
+    <div class="header-badge">✦ AI-Powered</div>
+  </header>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+
+    <!-- LEFT: INPUT -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><strong>01</strong> &nbsp; Product Requirements</div>
+        <div class="step-badge">INPUT</div>
+      </div>
+      <div class="panel-body">
+        
+        <div class="prd-label">Upload your PRD (PDF, Word)</div>
+        <div class="file-upload-container">
+            <div class="file-input-wrapper">
+                <div class="file-label" id="fileNameLabel">
+                    <span class="btn-icon">📁</span> Select Document
+                </div>
+                <input type="file" id="prdFile" accept=".pdf,.doc,.docx" onchange="handleFileSelect(this)">
+            </div>
+        </div>
+
+        <div class="prd-label">Additional Client Needs / Notes</div>
+        <textarea
+          id="prdInput"
+          placeholder="Mention specific client needs or additional context here…&#10;&#10;E.g. &quot;Client wants it in 3 months&quot; or &quot;Focus more on security&quot;."
+          oninput="updateCharCount()"
+        ></textarea>
+
+        <div class="input-footer">
+          <div class="char-count" id="charCount">0 characters</div>
+          <button class="btn-generate" id="generateBtn" onclick="generateProposal()">
+            <span class="btn-icon">◈</span>
+            Generate Proposal
+          </button>
+        </div>
+
+        <div class="hints">
+          <div class="hints-title">How it works?</div>
+          <ul>
+            <li>Upload your PRD document in PDF or Word format.</li>
+            <li>Add any extra notes or specific client requirements.</li>
+            <li>Our AI reads the file and drafts a professional proposal.</li>
+            <li>Review, copy, and send to your client!</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIVIDER -->
+    <div class="divider"></div>
+
+    <!-- RIGHT: OUTPUT -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><strong>02</strong> &nbsp; Project Proposal</div>
+        <div class="step-badge">OUTPUT</div>
+      </div>
+      <div class="panel-body" id="outputPanel">
+
+        <!-- Empty state -->
+        <div class="output-empty" id="emptyState">
+          <div class="output-empty-icon">◈</div>
+          <p>Your proposal will appear here</p>
+        </div>
+
+        <!-- Loading state -->
+        <div class="loading" id="loadingState">
+          <div class="loading-animation">
+            <div class="loading-spinner"></div>
+            <div class="loading-percentage" id="loadingPercentage">0%</div>
+          </div>
+          <div class="loading-progress-container">
+            <div class="loading-progress-bar" id="loadingProgressBar"></div>
+          </div>
+          <p class="loading-text" id="loadingText">Analyzing PRD & Drafting...</p>
+        </div>
+
+        <!-- Result -->
+        <div class="proposal" id="proposalOutput">
+          <div class="proposal-header">
+            <div class="proposal-eyebrow">Project Proposal</div>
+            <div class="proposal-title" id="proposalTitle">—</div>
+            <div class="proposal-meta" id="proposalMeta"></div>
+          </div>
+          <div class="proposal-body" id="proposalBody"></div>
+          <div class="output-actions">
+            <button class="btn-reset" onclick="resetOutput()">↩ Reset</button>
+            <button class="btn-copy" onclick="copyProposal()">⎘ Copy Text</button>
+            <button class="btn-download" id="downloadBtn" onclick="downloadProposal()">⬇ Download .docx</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentProposalRaw = "";
+
+    function handleFileSelect(input) {
+        const label = document.getElementById('fileNameLabel');
+        if (input.files && input.files[0]) {
+            label.innerHTML = `<span class="btn-icon">📄</span> ${input.files[0].name}`;
+            label.style.color = 'var(--text)';
+        } else {
+            label.innerHTML = `<span class="btn-icon">📁</span> Select Document`;
+            label.style.color = 'var(--gold)';
+        }
+    }
+
+    function updateCharCount() {
+      const ta = document.getElementById('prdInput');
+      document.getElementById('charCount').textContent = ta.value.length.toLocaleString() + ' characters';
+    }
+
+    let progressInterval;
+
+    function startProgress() {
+        let progress = 0;
+        const pt = document.getElementById('loadingPercentage');
+        const pb = document.getElementById('loadingProgressBar');
+        const lt = document.getElementById('loadingText');
+        pt.innerText = '0%';
+        pb.style.width = '0%';
+        
+        const texts = ["Analyzing PRD...", "Extracting requirements...", "Structuring proposal...", "Refining tone...", "Finalizing details..."];
+        let textIndex = 0;
+
+        progressInterval = setInterval(() => {
+            if (progress < 30) progress += 1.5;
+            else if (progress < 60) progress += 0.8;
+            else if (progress < 85) progress += 0.3;
+            else if (progress < 98) progress += 0.1;
+            
+            pt.innerText = Math.floor(progress) + '%';
+            pb.style.width = progress + '%';
+
+            if (Math.floor(progress) % 20 === 0 && textIndex < texts.length) {
+                lt.innerText = texts[textIndex++];
+            }
+        }, 150);
+    }
+
+    function completeProgress() {
+        clearInterval(progressInterval);
+        document.getElementById('loadingPercentage').innerText = '100%';
+        document.getElementById('loadingProgressBar').style.width = '100%';
+        document.getElementById('loadingText').innerText = "Done!";
+    }
+
+    function setState(state) {
+      document.getElementById('emptyState').style.display    = state === 'empty'    ? 'flex' : 'none';
+      document.getElementById('loadingState').classList.toggle('active', state === 'loading');
+      document.getElementById('proposalOutput').classList.toggle('active', state === 'result');
+      
+      if (state === 'loading') {
+          document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth' });
+          startProgress();
+      } else {
+          clearInterval(progressInterval);
+      }
+    }
+
+    async function generateProposal() {
+      const notes = document.getElementById('prdInput').value.trim();
+      const fileInput = document.getElementById('prdFile');
+      
+      if (!fileInput.files[0] && !notes) {
+        alert("Please upload a PRD file or enter some notes.");
+        return;
+      }
+
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = true;
+      setState('loading');
+
+      const formData = new FormData();
+      if (fileInput.files[0]) { formData.append('prdFile', fileInput.files[0]); }
+      formData.append('notes', notes);
+
+      try {
+        const response = await fetch("/generate", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        completeProgress();
+        setTimeout(() => {
+            currentProposalRaw = data.proposal;
+            renderProposal(data.proposal);
+            setState('result');
+        }, 500); // slight delay to show 100%
+      } catch (err) {
+        clearInterval(progressInterval);
+        document.getElementById('proposalBody').innerHTML = `<p style="color:#e06c6c">Error: ${err.message}</p>`;
+        document.getElementById('proposalTitle').textContent = 'Generation Failed';
+        setState('result');
+      }
+
+      btn.disabled = false;
+    }
+
+    function renderProposal(md) {
+      const titleMatch = md.match(/^#\s+(.+)/m);
+      const title = titleMatch ? titleMatch[1].trim() : 'Project Proposal';
+      const metaMatch = md.match(/\*\*Date:\*\*[^\n]*/);
+      const meta = metaMatch ? metaMatch[0].replace(/\*\*/g, '') : `Generated ${new Date().toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' })}`;
+
+      document.getElementById('proposalTitle').textContent = title;
+      document.getElementById('proposalMeta').textContent = meta;
+
+      let body = md.replace(/^#\s+.+\n?/m, '').replace(/\*\*Date:\*\*[^\n]*\n?/m, '').trim();
+
+      body = body
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/(\|.+\|\n)(\|[-| :]+\|\n)((\|.+\|\n?)*)/g, (m) => {
+          const lines = m.trim().split('\n').filter(l => l.trim());
+          if (lines.length < 2) return m;
+          const header = lines[0];
+          const rows = lines.slice(2);
+          const thCells = header.split('|').filter((c,i,a)=>i>0&&i<a.length-1).map(c=>`<th>${c.trim()}</th>`).join('');
+          const trRows = rows.map(r => {
+            const cells = r.split('|').filter((c,i,a)=>i>0&&i<a.length-1).map(c=>`<td>${c.trim()}</td>`).join('');
+            return `<tr>${cells}</tr>`;
+          }).join('');
+          return `<table><thead><tr>${thCells}</tr></thead><tbody>${trRows}</tbody></table>`;
+        })
+        .replace(/(^[-*] .+\n?)+/gm, m => {
+          const items = m.trim().split('\n').map(l => `<li>${l.replace(/^[-*] /,'').trim()}</li>`).join('');
+          return `<ul>${items}</ul>`;
+        })
+        .replace(/(^\d+\. .+\n?)+/gm, m => {
+          const items = m.trim().split('\n').map(l => `<li>${l.replace(/^\d+\. /,'').trim()}</li>`).join('');
+          return `<ol>${items}</ol>`;
+        })
+        .replace(/^(?!<[h|u|o|t|l]).+$/gm, p => p.trim() ? `<p>${p.trim()}</p>` : '')
+        .replace(/\n{2,}/g, '\n');
+
+      document.getElementById('proposalBody').innerHTML = body;
+    }
+
+    function resetOutput() {
+      setState('empty');
+      document.getElementById('proposalBody').innerHTML = '';
+      document.getElementById('proposalTitle').textContent = '—';
+      document.getElementById('prdFile').value = '';
+      document.getElementById('fileNameLabel').innerHTML = `<span class="btn-icon">📁</span> Select Document`;
+      document.getElementById('fileNameLabel').style.color = 'var(--gold)';
+      currentProposalRaw = "";
+    }
+
+    async function copyProposal() {
+      const title = document.getElementById('proposalTitle').textContent;
+      const body = document.getElementById('proposalBody').innerText;
+      try {
+        await navigator.clipboard.writeText(`${title}\n\n${body}`);
+        const btn = event.target;
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = orig, 2000);
+      } catch(e) {}
+    }
+
+    async function downloadProposal() {
+        if (!currentProposalRaw) return;
+        
+        const btn = document.getElementById('downloadBtn');
+        const origText = btn.textContent;
+        btn.textContent = '⏳ Generating...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/download-docx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ markdown: currentProposalRaw })
+            });
+
+            if (!response.ok) throw new Error('Download failed');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Proposal-${new Date().getTime()}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (err) {
+            alert("Error generating Word document.");
+        } finally {
+            btn.textContent = origText;
+            btn.disabled = false;
+        }
+    }
+  </script>
+</body>
+</html>
